@@ -22,8 +22,8 @@
         outline: none;
       }
 
-      /* Loading Screen */
-      #loading-overlay {
+      /* Overlay screen */
+      #start-overlay {
         position: absolute;
         top: 0;
         left: 0;
@@ -37,14 +37,13 @@
         align-items: center;
         z-index: 99;
         transition: opacity 0.3s ease;
-        pointer-events: none;
       }
 
       .spinner {
-        width: 50px;
-        height: 50px;
-        border: 5px solid #333;
-        border-top: 5px solid #4CAF50;
+        width: 40px;
+        height: 40px;
+        border: 4px solid #333;
+        border-top: 4px solid #4CAF50;
         border-radius: 50%;
         animation: spin 1s linear infinite;
         margin-bottom: 20px;
@@ -55,30 +54,61 @@
         100% { transform: rotate(360deg); }
       }
 
-      #status-text {
+      #start-btn {
+        display: none;
+        padding: 15px 32px;
         font-size: 1.2rem;
+        font-weight: bold;
+        color: #fff;
+        background-color: #4CAF50;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        transition: background-color 0.2s ease, transform 0.1s ease;
+      }
+
+      #start-btn:hover {
+        background-color: #45a049;
+        transform: scale(1.05);
+      }
+
+      #status-text {
+        font-size: 1.1rem;
         letter-spacing: 1px;
       }
     </style>
   </head>
   <body>
 
-    <div id="loading-overlay">
-      <div class="spinner"></div>
-      <div id="status-text">Loading...</div>
+    <!-- Combined Loading & Click-to-Play Overlay -->
+    <div id="start-overlay">
+      <div id="loader" class="spinner"></div>
+      <div id="status-text">Loading game...</div>
+      <button id="start-btn" onclick="startGame()">Click to Play</button>
     </div>
 
     <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
 
     <script type="text/javascript">
       var statusText = document.getElementById('status-text');
-      var loadingOverlay = document.getElementById('loading-overlay');
+      var loader = document.getElementById('loader');
+      var startBtn = document.getElementById('start-btn');
+      var startOverlay = document.getElementById('start-overlay');
+      var gameReady = false;
 
-      function removeOverlay() {
-        if (!loadingOverlay) return;
-        loadingOverlay.style.opacity = '0';
+      function startGame() {
+        if (!gameReady) return;
+
+        // Resume browser WebAudio context via user gesture
+        if (typeof SDL2 !== 'undefined' && SDL2.audioContext) {
+          SDL2.audioContext.resume();
+        }
+
+        // Hide overlay and reveal game
+        startOverlay.style.opacity = '0';
         setTimeout(function() {
-          loadingOverlay.style.display = 'none';
+          startOverlay.style.display = 'none';
         }, 300);
       }
 
@@ -86,9 +116,12 @@
         preRun: [],
         postRun: [],
         
-        // Emscripten hook: Triggers as soon as Wasm finishes compiling & engine starts
+        // Triggered when assets & WebAssembly finish initializing
         onRuntimeInitialized: function() {
-          removeOverlay();
+          gameReady = true;
+          loader.style.display = 'none';
+          statusText.style.display = 'none';
+          startBtn.style.display = 'block'; // Reveal "Click to Play" button!
         },
 
         print: console.log,
@@ -102,7 +135,6 @@
           return canvas;
         })(),
 
-        // Show download progress text, but don't show "Running..."
         setStatus: function(text) {
           if (text && text.indexOf('Running') === -1) {
             statusText.innerHTML = text;
