@@ -2,6 +2,7 @@
 <html lang="en-us">
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KenKen Game</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -21,7 +22,7 @@
         outline: none;
       }
 
-      /* Custom Loading Overlay */
+      /* Loading Screen */
       #loading-overlay {
         position: absolute;
         top: 0;
@@ -35,8 +36,8 @@
         justify-content: center;
         align-items: center;
         z-index: 99;
-        transition: opacity 0.4s ease;
-        pointer-events: none; /* Allows clicks to pass through if visible */
+        transition: opacity 0.3s ease;
+        pointer-events: none;
       }
 
       .spinner {
@@ -64,7 +65,7 @@
 
     <div id="loading-overlay">
       <div class="spinner"></div>
-      <div id="status-text">Loading game assets...</div>
+      <div id="status-text">Loading...</div>
     </div>
 
     <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
@@ -73,20 +74,23 @@
       var statusText = document.getElementById('status-text');
       var loadingOverlay = document.getElementById('loading-overlay');
 
-      function hideLoadingScreen() {
+      function removeOverlay() {
         if (!loadingOverlay) return;
         loadingOverlay.style.opacity = '0';
         setTimeout(function() {
           loadingOverlay.style.display = 'none';
-        }, 400);
+        }, 300);
       }
 
       var Module = {
         preRun: [],
-        postRun: [function() {
-          // Hide overlay as soon as main() finishes setup
-          hideLoadingScreen();
-        }],
+        postRun: [],
+        
+        // Emscripten hook: Triggers as soon as Wasm finishes compiling & engine starts
+        onRuntimeInitialized: function() {
+          removeOverlay();
+        },
+
         print: console.log,
         printErr: console.error,
         canvas: (function() {
@@ -97,19 +101,11 @@
           }, false);
           return canvas;
         })(),
-        
+
+        // Show download progress text, but don't show "Running..."
         setStatus: function(text) {
-          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
-          if (text === Module.setStatus.last.text) return;
-          
-          if (text) {
+          if (text && text.indexOf('Running') === -1) {
             statusText.innerHTML = text;
-            // "Running..." means WebAssembly has finished downloading/compiling and started running main()
-            if (text.indexOf('Running') !== -1) {
-              hideLoadingScreen();
-            }
-          } else {
-            hideLoadingScreen();
           }
         }
       };
