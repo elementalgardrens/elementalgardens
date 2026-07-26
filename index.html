@@ -35,15 +35,15 @@
         justify-content: center;
         align-items: center;
         z-index: 99;
-        transition: opacity 0.5s ease;
+        transition: opacity 0.4s ease;
+        pointer-events: none; /* Allows clicks to pass through if visible */
       }
 
-      /* CSS Spinner */
       .spinner {
         width: 50px;
         height: 50px;
         border: 5px solid #333;
-        border-top: 5px solid #4CAF50; /* Green accent color */
+        border-top: 5px solid #4CAF50;
         border-radius: 50%;
         animation: spin 1s linear infinite;
         margin-bottom: 20px;
@@ -62,22 +62,31 @@
   </head>
   <body>
 
-    <!-- Loading Screen Container -->
     <div id="loading-overlay">
       <div class="spinner"></div>
       <div id="status-text">Loading game assets...</div>
     </div>
 
-    <!-- Game Canvas -->
     <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
 
     <script type="text/javascript">
       var statusText = document.getElementById('status-text');
       var loadingOverlay = document.getElementById('loading-overlay');
 
+      function hideLoadingScreen() {
+        if (!loadingOverlay) return;
+        loadingOverlay.style.opacity = '0';
+        setTimeout(function() {
+          loadingOverlay.style.display = 'none';
+        }, 400);
+      }
+
       var Module = {
         preRun: [],
-        postRun: [],
+        postRun: [function() {
+          // Hide overlay as soon as main() finishes setup
+          hideLoadingScreen();
+        }],
         print: console.log,
         printErr: console.error,
         canvas: (function() {
@@ -89,20 +98,18 @@
           return canvas;
         })(),
         
-        // Emscripten hook that fires status updates while assets load
         setStatus: function(text) {
           if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
           if (text === Module.setStatus.last.text) return;
           
           if (text) {
-            // Update text with current state (e.g. Downloading assets...)
             statusText.innerHTML = text;
+            // "Running..." means WebAssembly has finished downloading/compiling and started running main()
+            if (text.indexOf('Running') !== -1) {
+              hideLoadingScreen();
+            }
           } else {
-            // Text is empty = loading finished! Hide overlay
-            loadingOverlay.style.opacity = '0';
-            setTimeout(function() {
-              loadingOverlay.style.display = 'none';
-            }, 500);
+            hideLoadingScreen();
           }
         }
       };
