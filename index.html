@@ -2,14 +2,9 @@
 <html lang="en-us">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KenKen Game</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
       body {
         background-color: #000;
         display: flex;
@@ -17,24 +12,101 @@
         align-items: center;
         height: 100vh;
         overflow: hidden;
+        font-family: Arial, sans-serif;
       }
+      
       canvas.emscripten {
         border: 0 none;
         background-color: #000;
         outline: none;
       }
+
+      /* Custom Loading Overlay */
+      #loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: #111;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 99;
+        transition: opacity 0.5s ease;
+      }
+
+      /* CSS Spinner */
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #333;
+        border-top: 5px solid #4CAF50; /* Green accent color */
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      #status-text {
+        font-size: 1.2rem;
+        letter-spacing: 1px;
+      }
     </style>
   </head>
   <body>
+
+    <!-- Loading Screen Container -->
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <div id="status-text">Loading game assets...</div>
+    </div>
+
+    <!-- Game Canvas -->
     <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
 
     <script type="text/javascript">
+      var statusText = document.getElementById('status-text');
+      var loadingOverlay = document.getElementById('loading-overlay');
+
       var Module = {
+        preRun: [],
+        postRun: [],
+        print: console.log,
+        printErr: console.error,
         canvas: (function() {
-          return document.getElementById('canvas');
-        })()
+          var canvas = document.getElementById('canvas');
+          canvas.addEventListener("webglcontextlost", function(e) { 
+            alert('WebGL context lost. Please reload.'); 
+            e.preventDefault(); 
+          }, false);
+          return canvas;
+        })(),
+        
+        // Emscripten hook that fires status updates while assets load
+        setStatus: function(text) {
+          if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+          if (text === Module.setStatus.last.text) return;
+          
+          if (text) {
+            // Update text with current state (e.g. Downloading assets...)
+            statusText.innerHTML = text;
+          } else {
+            // Text is empty = loading finished! Hide overlay
+            loadingOverlay.style.opacity = '0';
+            setTimeout(function() {
+              loadingOverlay.style.display = 'none';
+            }, 500);
+          }
+        }
       };
     </script>
-    <script async type="text/javascript" src="KenKen.js"></script>
+    <script async type="text/javascript" src="index.js"></script>
   </body>
 </html>
